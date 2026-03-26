@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
+import CertSelect from '../components/CertSelect'
 
 const TRADES = [
   'Pipefitter', 'Plumber', 'Steamfitter', 'Electrician', 'Ironworker',
@@ -12,13 +13,6 @@ const STATES = [
   'KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ',
   'NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT',
   'VA','WA','WV','WI','WY'
-]
-
-const CERTS = [
-  'OSHA-10', 'OSHA-30', 'TWIC Card', 'Nuclear Background Check',
-  'Rigging Certification', 'Forklift', 'Aerial Lift', 'Confined Space',
-  'PMP', 'Procore Certified', 'Welding (TIG)', 'Welding (MIG/Stick)',
-  'DISA/Drug Screen Pre-enrollment'
 ]
 
 const RIG_TYPES = [
@@ -108,22 +102,6 @@ const s = {
     boxSizing: 'border-box',
     cursor: 'pointer'
   },
-  certGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-    gap: '8px'
-  },
-  certItem: (selected) => ({
-    padding: '8px 12px',
-    background: selected ? '#1a2e1a' : '#141414',
-    border: `1px solid ${selected ? '#4caf50' : '#2a2a2a'}`,
-    borderRadius: '6px',
-    color: selected ? '#4caf50' : '#888',
-    fontSize: '12px',
-    cursor: 'pointer',
-    userSelect: 'none',
-    transition: 'all 0.15s'
-  }),
   btn: {
     width: '100%',
     padding: '13px',
@@ -175,15 +153,6 @@ export default function ProfileSetup({ user, onComplete }) {
   const [error, setError] = useState('')
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
-
-  const toggleCert = (cert) => {
-    setForm(f => ({
-      ...f,
-      certifications: f.certifications.includes(cert)
-        ? f.certifications.filter(c => c !== cert)
-        : [...f.certifications, cert]
-    }))
-  }
 
   const handleSubmit = async () => {
     if (!form.full_name || !form.trade || !form.home_state) {
@@ -327,15 +296,7 @@ export default function ProfileSetup({ user, onComplete }) {
         {/* Certifications */}
         <div style={s.section}>
           <div style={s.sectionLabel}>Certifications held (select all that apply)</div>
-          <div style={s.certGrid}>
-            {CERTS.map(cert => (
-              <div key={cert}
-                style={s.certItem(form.certifications.includes(cert))}
-                onClick={() => toggleCert(cert)}>
-                {form.certifications.includes(cert) ? '✓ ' : ''}{cert}
-              </div>
-            ))}
-          </div>
+          <CertSelect value={form.certifications} onChange={v => set('certifications', v)} />
         </div>
 
         <button style={s.btn} onClick={handleSubmit} disabled={loading}>

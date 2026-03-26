@@ -148,14 +148,27 @@ const SCHED_TO_HOURS = {
   '7/12s': { regHours: '40', otHours: '44', daysWorked: '7' },
 }
 
+const OT_MULTIPLIERS = [1.5, 1.75, 2.0]
+
+function detectMultiplier(wage, otRate) {
+  const w = parseFloat(wage), ot = parseFloat(otRate)
+  if (!w || !ot) return 1.5
+  const ratio = ot / w
+  const match = OT_MULTIPLIERS.find(m => Math.abs(ratio - m) < 0.01)
+  return match || 1.5
+}
+
 function buildInitialForm(profile) {
   const hasSaved = profile?.current_job_wage != null
   if (hasSaved) {
     const sched = profile.current_job_schedule || '5/10s'
     const hours = SCHED_TO_HOURS[sched] || SCHED_TO_HOURS['5/10s']
+    const wage = String(profile.current_job_wage)
+    const otRate = String(profile.current_job_ot_rate || '')
     return {
-      wage: String(profile.current_job_wage),
-      otRate: String(profile.current_job_ot_rate || ''),
+      wage,
+      otRate,
+      otMultiplier: detectMultiplier(wage, otRate),
       regHours: hours.regHours,
       otHours: hours.otHours,
       perDiem: String(profile.current_job_per_diem || '0'),
@@ -167,6 +180,7 @@ function buildInitialForm(profile) {
   return {
     wage: '',
     otRate: '',
+    otMultiplier: 1.5,
     regHours: '40',
     otHours: '10',
     perDiem: '100',
@@ -183,6 +197,24 @@ export default function PayCalculator({ profile, user, onProfileUpdate }) {
   const [saved, setSaved] = useState(false)
 
   const set = (k, v) => { setForm(f => ({ ...f, [k]: v })); setSaved(false) }
+
+  const handleWageChange = (wage) => {
+    setForm(f => {
+      const w = parseFloat(wage)
+      const autoOt = w ? (w * f.otMultiplier).toFixed(2) : ''
+      return { ...f, wage, otRate: autoOt }
+    })
+    setSaved(false)
+  }
+
+  const handleOtMultiplier = (mult) => {
+    setForm(f => {
+      const w = parseFloat(f.wage)
+      const autoOt = w ? (w * mult).toFixed(2) : ''
+      return { ...f, otMultiplier: mult, otRate: autoOt }
+    })
+    setSaved(false)
+  }
 
   const handleSchedule = (schedule) => {
     const vals = SCHED_TO_HOURS[schedule] || {}
@@ -233,11 +265,22 @@ export default function PayCalculator({ profile, user, onProfileUpdate }) {
                 <div style={s.field}>
                   <label style={s.label}>Base wage ($/hr) *</label>
                   <input style={s.input} type="number" value={form.wage}
-                    onChange={e => set('wage', e.target.value)}
+                    onChange={e => handleWageChange(e.target.value)}
                     placeholder="42.55" min="0" step="0.01" />
                 </div>
                 <div style={s.field}>
-                  <label style={s.label}>OT rate (auto 1.5x if blank)</label>
+                  <label style={s.label}>OT rate ($/hr)</label>
+                  <div style={{ display: 'flex', gap: '4px', marginBottom: '6px' }}>
+                    {OT_MULTIPLIERS.map(m => (
+                      <button key={m} onClick={() => handleOtMultiplier(m)} style={{
+                        padding: '4px 10px', border: '1px solid',
+                        borderColor: form.otMultiplier === m ? '#4caf50' : '#2a2a2a',
+                        borderRadius: '5px', cursor: 'pointer', fontSize: '11px',
+                        background: form.otMultiplier === m ? '#1a2e1a' : '#0a0a0a',
+                        color: form.otMultiplier === m ? '#4caf50' : '#888'
+                      }}>{m}x</button>
+                    ))}
+                  </div>
                   <input style={s.input} type="number" value={form.otRate}
                     onChange={e => set('otRate', e.target.value)}
                     placeholder={form.wage ? (parseFloat(form.wage) * 1.5).toFixed(2) : '63.83'}

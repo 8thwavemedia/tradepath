@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import PayCalculator from './PayCalculator'
+import JobRankings from './JobRankings'
 
 const s = {
   page: {
@@ -87,7 +88,7 @@ const s = {
 
 const FEATURES = [
   { id: 'calculator', label: 'Pay Calculator', desc: 'Real net take-home for any job', icon: '💰', active: true },
-  { id: 'jobs', label: 'Job Rankings', desc: 'Compare and rank opportunities', icon: '📋', active: false },
+  { id: 'jobs', label: 'Job Rankings', desc: 'Compare and rank opportunities', icon: '📋', active: true },
   { id: 'campgrounds', label: 'Campground Finder', desc: 'Near any job site', icon: '🗺️', active: false },
   { id: 'career', label: 'Career Path', desc: 'Salaried role tracker', icon: '📈', active: false },
   { id: 'ba', label: 'BA Dashboard', desc: 'For Business Agents', icon: '🏛️', active: false },
@@ -177,15 +178,9 @@ export default function Dashboard({ user, profile, onProfileUpdate }) {
         <PayCalculator profile={profile} user={user} onProfileUpdate={onProfileUpdate} />
       )}
 
-      {/* Job Rankings tab — placeholder */}
+      {/* Job Rankings tab */}
       {activeTab === 'jobs' && (
-        <div style={{ padding: '60px 24px', textAlign: 'center' }}>
-          <div style={{ fontSize: '32px', marginBottom: '16px' }}>📋</div>
-          <div style={{ color: '#fff', fontSize: '16px', marginBottom: '8px' }}>Job Rankings — Coming Next</div>
-          <div style={{ color: '#555', fontSize: '13px' }}>
-            Post and rank job opportunities scored against your profile.
-          </div>
-        </div>
+        <JobRankings user={user} profile={profile} />
       )}
     </div>
   )
