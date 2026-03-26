@@ -41,6 +41,89 @@ function calcNet({ wage, ot_rate, per_diem, days_worked, schedule, homeState }) 
 const fmt = (n) => '$' + Math.round(n).toLocaleString()
 const fmtDelta = (n) => (n >= 0 ? '+' : '-') + '$' + Math.abs(Math.round(n)).toLocaleString()
 
+// ── Job scoring algorithm ────────────────────────────────────────────────
+const OT_SCHEDULES = new Set(['5/10s', '6/10s', '7/12s'])
+
+function parseCerts(raw) {
+  if (!raw) return []
+  if (Array.isArray(raw)) return raw
+  try { return JSON.parse(raw) } catch { return raw.split(',').map(s => s.trim()).filter(Boolean) }
+}
+
+function scoreJob(job, profile, netWeekly, maxNet) {
+  const breakdown = {}
+
+  // 1. Weekly net take-home (35 pts) — normalized against highest payer
+  const payPts = maxNet > 0 ? (netWeekly / maxNet) * 35 : 35
+  breakdown.pay = { pts: Math.round(payPts * 10) / 10, max: 35, label: 'Weekly net pay' }
+
+  // 2. Per diem match (20 pts)
+  const minPd = parseFloat(profile?.min_per_diem) || 0
+  const jobPd = parseFloat(job.per_diem) || 0
+  let pdPts
+  if (minPd > 0) {
+    pdPts = Math.min((jobPd / minPd) * 20, 20)
+  } else {
+    pdPts = jobPd > 0 ? 20 : 10
+  }
+  breakdown.perDiem = { pts: Math.round(pdPts * 10) / 10, max: 20, label: 'Per diem' }
+
+  // 3. Schedule match (15 pts)
+  const prefSched = profile?.preferred_schedule
+  let schedPts
+  if (!prefSched) {
+    schedPts = 15
+  } else if (job.schedule === prefSched) {
+    schedPts = 15
+  } else if (OT_SCHEDULES.has(job.schedule) && OT_SCHEDULES.has(prefSched)) {
+    schedPts = 8
+  } else {
+    schedPts = 0
+  }
+  breakdown.schedule = { pts: schedPts, max: 15, label: 'Schedule match' }
+
+  // 4. Certification match (15 pts)
+  const jobCerts = parseCerts(job.certifications_required)
+  const userCerts = new Set(profile?.certifications || [])
+  let certPts, missingCerts = []
+  if (jobCerts.length === 0) {
+    certPts = 15
+  } else {
+    const held = jobCerts.filter(c => userCerts.has(c))
+    missingCerts = jobCerts.filter(c => !userCerts.has(c))
+    certPts = (held.length / jobCerts.length) * 15
+  }
+  breakdown.certs = { pts: Math.round(certPts * 10) / 10, max: 15, label: 'Certifications', missing: missingCerts }
+
+  // 5. Duration (10 pts)
+  let durPts
+  if (job.start_date && job.end_date) {
+    const weeks = Math.round((new Date(job.end_date) - new Date(job.start_date)) / (7 * 86400000))
+    if (weeks >= 26) durPts = 10
+    else if (weeks >= 12) durPts = 7
+    else if (weeks >= 4) durPts = 4
+    else durPts = 2
+    breakdown.duration = { pts: durPts, max: 10, label: `Duration (${weeks} wks)` }
+  } else {
+    durPts = 10
+    breakdown.duration = { pts: 10, max: 10, label: 'Duration (open-ended)' }
+  }
+
+  // 6. Clean requirements (5 pts)
+  let cleanPts = 5
+  const flags = []
+  if (job.drug_test && profile?.drug_test_concern) { cleanPts -= 2; flags.push('Drug test') }
+  if (job.background_check && profile?.bg_check_concern) { cleanPts -= 2; flags.push('BG check') }
+  breakdown.clean = { pts: Math.max(cleanPts, 0), max: 5, label: 'Requirements', flags }
+
+  const total = Math.round(
+    breakdown.pay.pts + breakdown.perDiem.pts + breakdown.schedule.pts +
+    breakdown.certs.pts + breakdown.duration.pts + breakdown.clean.pts
+  )
+
+  return { total, breakdown }
+}
+
 // ── Schedule presets ───────────────────────────────────────────────────────
 const SCHED_DAYS = {
   '4/10s': '4', '5/8s': '5', '5/10s': '5', '6/10s': '6', '7/12s': '7'
@@ -142,7 +225,53 @@ const s = {
     flex: 1, padding: '10px', background: 'transparent', border: '1px solid #333',
     borderRadius: '8px', color: '#888', fontSize: '13px', cursor: 'pointer'
   },
-  error: { color: '#e05252', fontSize: '12px', marginTop: '8px' }
+  error: { color: '#e05252', fontSize: '12px', marginTop: '8px' },
+  // Score
+  scoreBadge: (score) => ({
+    display: 'inline-flex', alignItems: 'center', gap: '3px',
+    padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '600',
+    marginLeft: '8px', flexShrink: 0,
+    background: score >= 80 ? '#1a2e1a' : score >= 60 ? '#2e2a1a' : '#2e1a1a',
+    color: score >= 80 ? '#4caf50' : score >= 60 ? '#f0b429' : '#e05252'
+  }),
+  sortBar: {
+    display: 'flex', gap: '6px', marginBottom: '14px', alignItems: 'center'
+  },
+  sortBtn: (active) => ({
+    padding: '5px 12px', border: '1px solid',
+    borderColor: active ? '#4caf50' : '#2a2a2a',
+    borderRadius: '6px', cursor: 'pointer', fontSize: '11px',
+    background: active ? '#1a2e1a' : 'transparent',
+    color: active ? '#4caf50' : '#666'
+  }),
+  sortLabel: { color: '#555', fontSize: '11px' },
+  breakdownToggle: {
+    background: 'none', border: 'none', color: '#555', fontSize: '11px',
+    cursor: 'pointer', padding: '4px 0', marginTop: '4px'
+  },
+  breakdownWrap: {
+    marginTop: '8px', padding: '10px 12px', background: '#0d0d0d',
+    borderRadius: '8px', border: '1px solid #1a1a1a'
+  },
+  breakdownRow: {
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    padding: '3px 0', fontSize: '11px'
+  },
+  breakdownLabel: { color: '#777' },
+  breakdownPts: (pct) => ({
+    fontWeight: '600',
+    color: pct >= 0.8 ? '#4caf50' : pct >= 0.5 ? '#f0b429' : '#e05252'
+  }),
+  breakdownBar: { width: '60px', height: '4px', background: '#222', borderRadius: '2px', margin: '0 8px', flexShrink: 0 },
+  breakdownFill: (pct, color) => ({
+    width: `${pct * 100}%`, height: '100%', borderRadius: '2px',
+    background: color >= 0.8 ? '#4caf50' : color >= 0.5 ? '#f0b429' : '#e05252'
+  }),
+  missingCert: {
+    display: 'inline-block', padding: '2px 6px', background: '#2e1a1a',
+    border: '1px solid #4a2020', borderRadius: '4px', color: '#e05252',
+    fontSize: '10px', margin: '2px 3px 2px 0'
+  }
 }
 
 const BLANK_FORM = {
@@ -160,6 +289,8 @@ export default function JobRankings({ user, profile }) {
   const [form, setForm] = useState({ ...BLANK_FORM })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [expandedId, setExpandedId] = useState(null)
+  const [sortMode, setSortMode] = useState('score')
 
   const currentNet = profile?.current_job_net_weekly
   const homeState = profile?.home_state || 'UT'
@@ -344,63 +475,125 @@ export default function JobRankings({ user, profile }) {
           <div style={s.empty}>
             No jobs yet. Click <strong style={{ color: '#4caf50' }}>+ Add Job</strong> to enter your first opportunity.
           </div>
-        ) : (
-          <div style={s.cardList}>
-            {jobs.map((job, idx) => {
-              const netWeekly = calcNet({
-                wage: job.wage, ot_rate: job.ot_rate, per_diem: job.per_diem,
-                days_worked: job.days_per_week, schedule: job.schedule, homeState
-              })
-              const netMonthly = netWeekly * 4.33
-              const delta = currentNet != null ? netWeekly - currentNet : null
-              return (
-                <div key={job.saved_id} style={s.card}>
-                  <div style={s.rank}>{idx + 1}</div>
+        ) : (() => {
+          // Pre-compute net for all jobs to find max for normalization
+          const jobNets = jobs.map(job => calcNet({
+            wage: job.wage, ot_rate: job.ot_rate, per_diem: job.per_diem,
+            days_worked: job.days_per_week, schedule: job.schedule, homeState
+          }))
+          const maxNet = Math.max(...jobNets, 1)
 
-                  <div style={s.cardBody} onClick={() => openEdit(job)} role="button" tabIndex={0}>
-                    <div style={s.cardTop}>
-                      <div>
-                        <div style={s.cardProject}>{job.project_name}</div>
-                        <div style={s.cardLocation}>
-                          {[job.city, job.state].filter(Boolean).join(', ')}
-                          {job.contractor && <span> &middot; {job.contractor}</span>}
+          // Build scored list
+          const scored = jobs.map((job, i) => ({
+            job, netWeekly: jobNets[i],
+            ...scoreJob(job, profile, jobNets[i], maxNet)
+          }))
+
+          // Sort
+          const sorted = sortMode === 'score'
+            ? [...scored].sort((a, b) => b.total - a.total)
+            : scored // 'manual' keeps DB rank_position order
+
+          return (
+            <>
+              <div style={s.sortBar}>
+                <span style={s.sortLabel}>Sort by:</span>
+                <button style={s.sortBtn(sortMode === 'score')} onClick={() => setSortMode('score')}>Score</button>
+                <button style={s.sortBtn(sortMode === 'manual')} onClick={() => setSortMode('manual')}>Manual rank</button>
+              </div>
+              <div style={s.cardList}>
+                {sorted.map(({ job, netWeekly, total, breakdown }, idx) => {
+                  const netMonthly = netWeekly * 4.33
+                  const delta = currentNet != null ? netWeekly - currentNet : null
+                  const expanded = expandedId === job.saved_id
+                  return (
+                    <div key={job.saved_id} style={s.card}>
+                      <div style={s.rank}>{idx + 1}</div>
+
+                      <div style={s.cardBody}>
+                        <div style={s.cardTop}>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                              <span style={s.cardProject} onClick={() => openEdit(job)} role="button" tabIndex={0}>
+                                {job.project_name}
+                              </span>
+                              <span style={s.scoreBadge(total)}>{total}/100</span>
+                            </div>
+                            <div style={s.cardLocation}>
+                              {[job.city, job.state].filter(Boolean).join(', ')}
+                              {job.contractor && <span> &middot; {job.contractor}</span>}
+                            </div>
+                          </div>
+                          <div style={s.cardPay}>
+                            <div style={s.cardNet}>{fmt(netWeekly)}/wk</div>
+                            <div style={s.cardMonthly}>{fmt(netMonthly)}/mo</div>
+                            {delta != null && (
+                              <div style={s.cardDelta(delta >= 0)}>
+                                {fmtDelta(delta)}/wk vs current
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                      <div style={s.cardPay}>
-                        <div style={s.cardNet}>{fmt(netWeekly)}/wk</div>
-                        <div style={s.cardMonthly}>{fmt(netMonthly)}/mo</div>
-                        {delta != null && (
-                          <div style={s.cardDelta(delta >= 0)}>
-                            {fmtDelta(delta)}/wk vs current
+
+                        <div style={s.cardMeta}>
+                          <span style={s.tag}>{fmt(job.wage)}/hr</span>
+                          <span style={s.tag}>{job.schedule}</span>
+                          {job.per_diem > 0 && <span style={s.tag}>${job.per_diem}/day per diem</span>}
+                          {job.drug_test && <span style={s.tag}>Drug test</span>}
+                          {job.background_check && <span style={s.tag}>BG check</span>}
+                          {parseCerts(job.certifications_required).length > 0 && (
+                            <span style={s.tag}>{parseCerts(job.certifications_required).join(', ')}</span>
+                          )}
+                        </div>
+
+                        <button style={s.breakdownToggle}
+                          onClick={() => setExpandedId(expanded ? null : job.saved_id)}>
+                          {expanded ? 'Hide score breakdown' : 'Show score breakdown'}
+                        </button>
+
+                        {expanded && (
+                          <div style={s.breakdownWrap}>
+                            {Object.values(breakdown).map(({ pts, max, label, missing, flags }) => {
+                              const pct = max > 0 ? pts / max : 1
+                              return (
+                                <div key={label}>
+                                  <div style={s.breakdownRow}>
+                                    <span style={s.breakdownLabel}>{label}</span>
+                                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                                      <div style={s.breakdownBar}>
+                                        <div style={s.breakdownFill(pct, pct)} />
+                                      </div>
+                                      <span style={s.breakdownPts(pct)}>{pts}/{max}</span>
+                                    </div>
+                                  </div>
+                                  {missing?.length > 0 && (
+                                    <div style={{ padding: '2px 0 4px' }}>
+                                      <span style={{ color: '#666', fontSize: '10px' }}>Missing: </span>
+                                      {missing.map(c => <span key={c} style={s.missingCert}>{c}</span>)}
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            })}
                           </div>
                         )}
                       </div>
-                    </div>
-                    <div style={s.cardMeta}>
-                      <span style={s.tag}>{fmt(job.wage)}/hr</span>
-                      <span style={s.tag}>{job.schedule}</span>
-                      {job.per_diem > 0 && <span style={s.tag}>${job.per_diem}/day per diem</span>}
-                      {job.drug_test && <span style={s.tag}>Drug test</span>}
-                      {job.background_check && <span style={s.tag}>BG check</span>}
-                      {job.certifications_required?.length > 0 && (
-                        <span style={s.tag}>{Array.isArray(job.certifications_required) ? job.certifications_required.join(', ') : job.certifications_required}</span>
-                      )}
-                    </div>
-                  </div>
 
-                  <div style={s.arrows}>
-                    <button style={s.arrowBtn} onClick={() => move(idx, -1)} disabled={idx === 0}
-                      title="Move up">&#9650;</button>
-                    <button style={s.arrowBtn} onClick={() => move(idx, 1)} disabled={idx === jobs.length - 1}
-                      title="Move down">&#9660;</button>
-                  </div>
+                      <div style={s.arrows}>
+                        <button style={s.arrowBtn} onClick={() => move(jobs.indexOf(job), -1)}
+                          disabled={jobs.indexOf(job) === 0} title="Move up">&#9650;</button>
+                        <button style={s.arrowBtn} onClick={() => move(jobs.indexOf(job), 1)}
+                          disabled={jobs.indexOf(job) === jobs.length - 1} title="Move down">&#9660;</button>
+                      </div>
 
-                  <button style={s.deleteBtn} onClick={() => handleDelete(job)} title="Remove">&times;</button>
-                </div>
-              )
-            })}
-          </div>
-        )}
+                      <button style={s.deleteBtn} onClick={() => handleDelete(job)} title="Remove">&times;</button>
+                    </div>
+                  )
+                })}
+              </div>
+            </>
+          )
+        })()}
       </div>
 
       {/* ── Add / Edit modal ──────────────────────────────────────────── */}
