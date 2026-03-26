@@ -60,5 +60,5 @@ export default function App() {
 
   if (!session) return <Auth />
   if (!profile) return <ProfileSetup user={session.user} onComplete={handleProfileComplete} />
-  return <Dashboard user={session.user} profile={profile} />
+  return <Dashboard user={session.user} profile={profile} onProfileUpdate={() => fetchProfile(session.user.id)} />
 }
