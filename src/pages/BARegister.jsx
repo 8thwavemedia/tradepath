@@ -47,6 +47,9 @@ const s = {
   input: { width: '100%', padding: '11px 12px', background: '#0a0a0a', border: '1px solid #2a2a2a',
     borderRadius: '8px', color: '#fff', fontSize: '13px', outline: 'none',
     boxSizing: 'border-box', minHeight: '44px' },
+  inputReadonly: { width: '100%', padding: '11px 12px', background: '#111', border: '1px solid #1a1a1a',
+    borderRadius: '8px', color: '#888', fontSize: '13px', outline: 'none',
+    boxSizing: 'border-box', minHeight: '44px', cursor: 'not-allowed' },
   select: { width: '100%', padding: '11px 12px', background: '#0a0a0a', border: '1px solid #2a2a2a',
     borderRadius: '8px', color: '#fff', fontSize: '13px', outline: 'none',
     boxSizing: 'border-box', cursor: 'pointer', minHeight: '44px' },
@@ -81,15 +84,19 @@ const s = {
   detailLabel: { color: '#777' },
   detailVal: { color: '#ddd' },
   back: { color: '#4caf50', fontSize: '13px', background: 'none', border: 'none',
-    cursor: 'pointer', padding: 0, marginBottom: '20px', display: 'block' }
+    cursor: 'pointer', padding: 0, marginBottom: '20px', display: 'block' },
+  note: { color: '#888', fontSize: '12px', marginTop: '12px', textAlign: 'center' }
 }
 
-export default function BARegister({ user, token, onComplete, onBack }) {
+// Steps: 0=validating, 1=create account, 2=local details, 3=select tier, 4=confirmation
+export default function BARegister({ token, onComplete, onBack }) {
   const mobile = useIsMobile()
-  const [step, setStep] = useState(0) // 0 = validating token
+  const [step, setStep] = useState(0)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [invite, setInvite] = useState(null)
+  const [password, setPassword] = useState('')
+  const [authUser, setAuthUser] = useState(null)
   const [form, setForm] = useState({
     union_name: '', trade: '', local_number: '', city: '', state: '',
     ba_email: '', ba_phone: '', full_name: '', title: 'Business Agent',
@@ -126,7 +133,62 @@ export default function BARegister({ user, token, onComplete, onBack }) {
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
-  const validateStep1 = () => {
+  const handleCreateAccount = async (e) => {
+    e.preventDefault()
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters.')
+      return
+    }
+    setSaving(true)
+    setError('')
+
+    const { data, error: signUpErr } = await supabase.auth.signUp({
+      email: invite.email,
+      password
+    })
+
+    if (signUpErr) {
+      setSaving(false)
+      setError(signUpErr.message)
+      return
+    }
+
+    // signUp with auto-confirm returns a session immediately
+    // If email confirmation is required, the session will be null
+    if (data.session) {
+      setAuthUser(data.session.user)
+      setSaving(false)
+      setStep(2)
+    } else {
+      // Email confirmation required — need to wait for user to confirm
+      setSaving(false)
+      setError('Please check your email to confirm your account, then come back to this page and sign in below.')
+      setStep('confirm-email')
+    }
+  }
+
+  const handleSignIn = async (e) => {
+    e.preventDefault()
+    setSaving(true)
+    setError('')
+
+    const { data, error: signInErr } = await supabase.auth.signInWithPassword({
+      email: invite.email,
+      password
+    })
+
+    if (signInErr) {
+      setSaving(false)
+      setError(signInErr.message)
+      return
+    }
+
+    setAuthUser(data.session.user)
+    setSaving(false)
+    setStep(2)
+  }
+
+  const validateStep2 = () => {
     if (!form.union_name || !form.trade || !form.state || !form.full_name) {
       setError('Union name, trade, state, and your name are required.')
       return false
@@ -138,9 +200,6 @@ export default function BARegister({ user, token, onComplete, onBack }) {
   const handleSubmit = async () => {
     setSaving(true)
     setError('')
-
-    // Refresh JWT so RLS policies see current claims
-    await supabase.auth.refreshSession()
 
     // Create local
     const { data: local, error: localErr } = await supabase
@@ -164,7 +223,7 @@ export default function BARegister({ user, token, onComplete, onBack }) {
     const { error: baErr } = await supabase
       .from('ba_users')
       .insert({
-        id: user.id,
+        id: authUser.id,
         local_id: local.id,
         full_name: form.full_name,
         title: form.title,
@@ -180,7 +239,7 @@ export default function BARegister({ user, token, onComplete, onBack }) {
       .eq('id', invite.id)
 
     setSaving(false)
-    setStep(3)
+    setStep(4)
   }
 
   if (step === 0) return <FullPageSpinner />
@@ -194,10 +253,68 @@ export default function BARegister({ user, token, onComplete, onBack }) {
 
         {error && <div style={s.error}>{error}</div>}
 
-        {/* Step 1 — Local details */}
+        {/* Step 1 — Create account */}
         {step === 1 && (
           <>
-            <div style={s.step}>Step 1 of 3 — Local &amp; Contact Info</div>
+            <div style={s.step}>Step 1 of 4 — Create Your Account</div>
+            <div style={s.card}>
+              <form onSubmit={handleCreateAccount}>
+                <div style={s.field}>
+                  <label style={s.label}>Email</label>
+                  <input style={s.inputReadonly} type="email" value={invite.email} readOnly />
+                </div>
+                {invite.local_name && (
+                  <div style={s.field}>
+                    <label style={s.label}>Invited for</label>
+                    <input style={s.inputReadonly} value={invite.local_name} readOnly />
+                  </div>
+                )}
+                <div style={s.field}>
+                  <label style={s.label}>Create a password *</label>
+                  <input style={s.input} type="password" value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    placeholder="At least 6 characters" minLength={6} required />
+                </div>
+                <button type="submit" disabled={saving} style={s.btn}>
+                  {saving ? <><Spinner /> Creating account...</> : 'Create Account & Continue'}
+                </button>
+              </form>
+              <p style={s.note}>Your account will be created and you'll continue to set up your portal.</p>
+            </div>
+          </>
+        )}
+
+        {/* Email confirmation fallback */}
+        {step === 'confirm-email' && (
+          <>
+            <div style={s.step}>Confirm Your Email</div>
+            <div style={s.card}>
+              <p style={{ color: '#ccc', fontSize: '14px', margin: '0 0 16px' }}>
+                We sent a confirmation email to <strong>{invite.email}</strong>.
+                Please confirm your email, then sign in below.
+              </p>
+              <form onSubmit={handleSignIn}>
+                <div style={s.field}>
+                  <label style={s.label}>Email</label>
+                  <input style={s.inputReadonly} type="email" value={invite.email} readOnly />
+                </div>
+                <div style={s.field}>
+                  <label style={s.label}>Password</label>
+                  <input style={s.input} type="password" value={password}
+                    onChange={e => setPassword(e.target.value)} required />
+                </div>
+                <button type="submit" disabled={saving} style={s.btn}>
+                  {saving ? <><Spinner /> Signing in...</> : 'Sign In & Continue'}
+                </button>
+              </form>
+            </div>
+          </>
+        )}
+
+        {/* Step 2 — Local details */}
+        {step === 2 && (
+          <>
+            <div style={s.step}>Step 2 of 4 — Local &amp; Contact Info</div>
             <div style={s.card}>
               <div style={{ ...s.row, gridTemplateColumns: mobile ? '1fr' : '1fr 1fr' }}>
                 <div style={s.field}>
@@ -253,14 +370,14 @@ export default function BARegister({ user, token, onComplete, onBack }) {
                 </div>
               </div>
             </div>
-            <button style={s.btn} onClick={() => validateStep1() && setStep(2)}>Continue to pricing</button>
+            <button style={s.btn} onClick={() => validateStep2() && setStep(3)}>Continue to pricing</button>
           </>
         )}
 
-        {/* Step 2 — Select tier */}
-        {step === 2 && (
+        {/* Step 3 — Select tier */}
+        {step === 3 && (
           <>
-            <div style={s.step}>Step 2 of 3 — Select Your Plan</div>
+            <div style={s.step}>Step 3 of 4 — Select Your Plan</div>
             <div style={{ ...s.tierGrid, gridTemplateColumns: mobile ? '1fr' : '1fr 1fr 1fr' }}>
               {TIERS.map(tier => (
                 <div key={tier.id} style={s.tierCard(form.tier === tier.id, tier.recommended)}
@@ -277,12 +394,12 @@ export default function BARegister({ user, token, onComplete, onBack }) {
             <button style={s.btn} onClick={handleSubmit} disabled={saving}>
               {saving ? <><Spinner /> Creating your portal...</> : 'Create BA Portal'}
             </button>
-            <button style={s.btnSecondary} onClick={() => setStep(1)}>Back</button>
+            <button style={s.btnSecondary} onClick={() => setStep(2)}>Back</button>
           </>
         )}
 
-        {/* Step 3 — Confirmation */}
-        {step === 3 && (
+        {/* Step 4 — Confirmation */}
+        {step === 4 && (
           <div style={s.confirmCard}>
             <div style={s.confirmIcon}>{'\u2705'}</div>
             <div style={s.confirmTitle}>Your BA Portal is ready!</div>

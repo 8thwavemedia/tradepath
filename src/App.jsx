@@ -35,7 +35,7 @@ export default function App() {
   const [local, setLocal] = useState(null)
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(() => isAdminRoute() ? 'admin-invite' : null)
-  const [inviteToken, setInviteToken] = useState(getInviteToken)
+  const [inviteToken] = useState(getInviteToken)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -55,13 +55,6 @@ export default function App() {
     return () => subscription.unsubscribe()
   }, [])
 
-  // When user signs in with a token in the URL, route to BA register
-  useEffect(() => {
-    if (session && inviteToken) {
-      setPage('ba-register')
-    }
-  }, [session, inviteToken])
-
   const fetchUserData = async (userId) => {
     const [{ data: prof }, { data: ba }] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', userId).single(),
@@ -75,10 +68,14 @@ export default function App() {
 
   const handleProfileComplete = () => fetchUserData(session.user.id)
   const handleBAComplete = () => {
-    setPage(null)
-    setInviteToken(null)
     clearTokenFromUrl()
-    fetchUserData(session.user.id)
+    // Re-fetch with the session that BARegister created internally
+    supabase.auth.getSession().then(({ data: { session: s } }) => {
+      if (s) {
+        setSession(s)
+        fetchUserData(s.user.id)
+      }
+    })
   }
 
   // Legal pages
@@ -90,17 +87,15 @@ export default function App() {
     if (session && session.user.email === ADMIN_EMAIL) {
       return <AdminInvite user={session.user} onBack={() => setPage(null)} />
     }
-    // Non-admin or not signed in — fall through to normal routing
   }
 
-  // BA registration flow (requires sign-in + valid invite token)
-  if (page === 'ba-register' && session && inviteToken) {
+  // BA registration flow — no session required, BARegister handles auth internally
+  if (inviteToken) {
     return (
       <BARegister
-        user={session.user}
         token={inviteToken}
         onComplete={handleBAComplete}
-        onBack={() => { setPage(null); setInviteToken(null); clearTokenFromUrl() }}
+        onBack={() => { clearTokenFromUrl(); window.location.reload() }}
       />
     )
   }
