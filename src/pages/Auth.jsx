@@ -106,7 +106,15 @@ export default function Auth({ onNavigate }) {
           </form>
         </div>
 
-        <div style={{ textAlign: 'center', marginTop: '16px' }}>
+        <div style={{ textAlign: 'center', marginTop: '20px' }}>
+          <button onClick={() => onNavigate?.('ba-register')} style={{
+            background: 'none', border: '1px solid #2a2a2a', borderRadius: '8px',
+            color: '#7eb8f7', fontSize: '12px', cursor: 'pointer', padding: '10px 20px',
+            width: '100%', marginBottom: '12px'
+          }}>Business Agent / Contractor? Set up your BA Portal</button>
+        </div>
+
+        <div style={{ textAlign: 'center', marginTop: '4px' }}>
           <button onClick={() => onNavigate?.('tos')} style={{
             background: 'none', border: 'none', color: '#555', fontSize: '12px',
             cursor: 'pointer', padding: '4px 8px'
