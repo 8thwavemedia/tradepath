@@ -109,14 +109,6 @@ export default function BARegister({ user, onComplete, onBack }) {
     setSaving(true)
     setError('')
 
-    // Ensure user is signed in with a fresh session
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
-      setSaving(false)
-      setError('You must be signed in to create a BA portal.')
-      return
-    }
-
     // Refresh JWT so RLS policies see current claims
     await supabase.auth.refreshSession()
 
