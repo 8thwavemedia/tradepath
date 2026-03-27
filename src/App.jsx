@@ -54,15 +54,15 @@ export default function App() {
   if (page === 'tos') return <ToS onBack={() => setPage(null)} />
   if (page === 'privacy') return <Privacy onBack={() => setPage(null)} />
 
+  // BA registration flow (accessible before sign-in)
+  if (page === 'ba-register') {
+    return <BARegister user={session?.user} onComplete={handleBAComplete} onBack={() => setPage(null)} />
+  }
+
   if (loading) return <FullPageSpinner />
 
   // Not signed in
   if (!session) return <Auth onNavigate={setPage} />
-
-  // BA registration flow
-  if (page === 'ba-register') {
-    return <BARegister user={session.user} onComplete={handleBAComplete} onBack={() => setPage(null)} />
-  }
 
   // BA user — route to BA dashboard
   if (baUser && local) {
