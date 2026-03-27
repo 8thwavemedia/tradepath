@@ -72,8 +72,16 @@ ALTER TABLE ba_users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ba_job_postings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE dispatch_records ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "BA users can manage their local" ON locals
-  FOR ALL USING (
+CREATE POLICY "Authenticated users can insert locals" ON locals
+  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "BA users can view their local" ON locals
+  FOR SELECT USING (
+    id IN (SELECT local_id FROM ba_users WHERE id = auth.uid())
+  );
+
+CREATE POLICY "BA users can update their local" ON locals
+  FOR UPDATE USING (
     id IN (SELECT local_id FROM ba_users WHERE id = auth.uid())
   );
 
