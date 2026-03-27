@@ -17,156 +17,82 @@ const STATES = [
 ]
 
 const RIG_TYPES = [
-  'Fifth wheel / 5th wheel',
-  'Travel trailer',
-  'Class A motorhome',
-  'Class C motorhome',
-  'Toy hauler',
-  'Cargo trailer conversion',
-  'No rig — hotel/apartment',
-  'Other'
+  'Fifth wheel / 5th wheel', 'Travel trailer', 'Class A motorhome',
+  'Class C motorhome', 'Toy hauler', 'Cargo trailer conversion',
+  'No rig — hotel/apartment', 'Other'
 ]
 
 const s = {
-  page: {
-    minHeight: '100vh',
-    background: '#0a0a0a',
+  page: { minHeight: '100vh', background: '#0a0a0a',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-    padding: '40px 20px'
-  },
-  wrap: {
-    maxWidth: '620px',
-    margin: '0 auto'
-  },
-  header: {
-    marginBottom: '32px'
-  },
-  title: {
-    color: '#fff',
-    fontSize: '22px',
-    fontWeight: '600',
-    margin: '0 0 6px'
-  },
-  sub: {
-    color: '#666',
-    fontSize: '14px',
-    margin: 0
-  },
-  section: {
-    marginBottom: '28px'
-  },
+    padding: '32px 20px' },
+  wrap: { maxWidth: '620px', margin: '0 auto' },
+  title: { color: '#fff', fontSize: '20px', fontWeight: '600', margin: '0 0 4px' },
+  sub: { color: '#666', fontSize: '13px', margin: '0 0 28px' },
+  section: { marginBottom: '28px' },
   sectionLabel: {
-    fontSize: '10px',
-    fontWeight: '700',
-    color: '#555',
-    letterSpacing: '.1em',
-    textTransform: 'uppercase',
-    marginBottom: '12px',
-    paddingBottom: '6px',
-    borderBottom: '1px solid #1a1a1a'
+    fontSize: '10px', fontWeight: '700', color: '#555',
+    letterSpacing: '.1em', textTransform: 'uppercase',
+    marginBottom: '12px', paddingBottom: '6px', borderBottom: '1px solid #1a1a1a'
   },
-  row: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '12px',
-    marginBottom: '12px'
-  },
-  field: {
-    marginBottom: '12px'
-  },
-  label: {
-    display: 'block',
-    color: '#aaa',
-    fontSize: '12px',
-    marginBottom: '5px'
-  },
+  row: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' },
+  field: { marginBottom: '12px' },
+  label: { display: 'block', color: '#aaa', fontSize: '12px', marginBottom: '5px' },
   input: {
-    width: '100%',
-    padding: '11px 12px',
-    background: '#141414',
-    border: '1px solid #2a2a2a',
-    borderRadius: '8px',
-    color: '#fff',
-    fontSize: '13px',
-    outline: 'none',
-    boxSizing: 'border-box',
-    minHeight: '44px'
+    width: '100%', padding: '11px 12px', background: '#141414',
+    border: '1px solid #2a2a2a', borderRadius: '8px', color: '#fff',
+    fontSize: '13px', outline: 'none', boxSizing: 'border-box', minHeight: '44px'
   },
   select: {
-    width: '100%',
-    padding: '11px 12px',
-    background: '#141414',
-    border: '1px solid #2a2a2a',
-    borderRadius: '8px',
-    color: '#fff',
-    fontSize: '13px',
-    outline: 'none',
-    boxSizing: 'border-box',
-    cursor: 'pointer',
-    minHeight: '44px'
+    width: '100%', padding: '11px 12px', background: '#141414',
+    border: '1px solid #2a2a2a', borderRadius: '8px', color: '#fff',
+    fontSize: '13px', outline: 'none', boxSizing: 'border-box', cursor: 'pointer', minHeight: '44px'
   },
   btn: {
-    width: '100%',
-    padding: '13px',
-    background: '#4caf50',
-    border: 'none',
-    borderRadius: '8px',
-    color: '#fff',
-    fontSize: '14px',
-    fontWeight: '500',
-    cursor: 'pointer',
-    marginTop: '8px'
+    width: '100%', padding: '13px', background: '#4caf50', border: 'none',
+    borderRadius: '8px', color: '#fff', fontSize: '14px', fontWeight: '500',
+    cursor: 'pointer', marginTop: '8px', minHeight: '44px',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
   },
   error: {
-    background: '#2e1a1a',
-    border: '1px solid #5a1a1a',
-    borderRadius: '8px',
-    padding: '10px 12px',
-    color: '#e05252',
-    fontSize: '13px',
-    marginBottom: '16px'
+    background: '#2e1a1a', border: '1px solid #5a1a1a', borderRadius: '8px',
+    padding: '10px 12px', color: '#e05252', fontSize: '13px', marginBottom: '16px'
   },
-  note: {
-    background: '#141414',
-    border: '1px solid #222',
-    borderLeft: '3px solid #7eb8f7',
-    borderRadius: '0 8px 8px 0',
-    padding: '10px 14px',
-    color: '#b0c8e8',
-    fontSize: '12px',
-    marginBottom: '24px',
-    lineHeight: '1.6'
+  success: {
+    background: '#1a2e1a', border: '1px solid #1a5a1a', borderRadius: '8px',
+    padding: '10px 12px', color: '#4caf50', fontSize: '13px', marginBottom: '16px'
   }
 }
 
-export default function ProfileSetup({ user, onComplete }) {
+export default function ProfileEdit({ user, profile, onProfileUpdate }) {
   const [form, setForm] = useState({
-    full_name: '',
-    trade: '',
-    home_state: '',
-    home_city: '',
-    years_experience: '',
-    certifications: [],
-    preferred_schedule: '',
-    min_per_diem: '',
-    travel_radius_miles: '500',
-    rig_type: ''
+    full_name: profile?.full_name || '',
+    trade: profile?.trade || '',
+    home_state: profile?.home_state || '',
+    home_city: profile?.home_city || '',
+    years_experience: String(profile?.years_experience || ''),
+    certifications: profile?.certifications || [],
+    preferred_schedule: profile?.preferred_schedule || '',
+    min_per_diem: String(profile?.min_per_diem || ''),
+    travel_radius_miles: String(profile?.travel_radius_miles || '500'),
+    rig_type: profile?.rig_type || ''
   })
-  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
 
-  const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
+  const set = (key, val) => { setForm(f => ({ ...f, [key]: val })); setSuccess('') }
 
   const handleSubmit = async () => {
     if (!form.full_name || !form.trade || !form.home_state) {
       setError('Name, trade, and home state are required.')
       return
     }
-    setLoading(true)
+    setSaving(true)
     setError('')
+    setSuccess('')
 
-    const { error } = await supabase.from('profiles').upsert({
-      id: user.id,
+    const { error: err } = await supabase.from('profiles').update({
       full_name: form.full_name,
       trade: form.trade,
       home_state: form.home_state,
@@ -178,45 +104,34 @@ export default function ProfileSetup({ user, onComplete }) {
       travel_radius_miles: parseInt(form.travel_radius_miles) || 500,
       rig_type: form.rig_type,
       updated_at: new Date().toISOString()
-    })
+    }).eq('id', user.id)
 
-    if (error) {
-      setError(error.message)
-      setLoading(false)
-    } else {
-      onComplete()
-    }
+    setSaving(false)
+    if (err) { setError(err.message) }
+    else { setSuccess('Profile updated.'); onProfileUpdate?.() }
   }
 
   return (
     <div style={s.page}>
       <div style={s.wrap}>
-        <div style={s.header}>
-          <h1 style={s.title}>Set up your TradePath profile</h1>
-          <p style={s.sub}>This powers your personalized job rankings. Takes 2 minutes.</p>
-        </div>
-
-        <div style={s.note}>
-          Your profile is used to calculate your real net take-home for each job based on your home state taxes, preferred schedule, and per diem requirements. Nothing is shared publicly.
-        </div>
+        <h2 style={s.title}>Settings</h2>
+        <p style={s.sub}>Update your profile to improve job score accuracy.</p>
 
         {error && <div style={s.error}>{error}</div>}
+        {success && <div style={s.success}>{success}</div>}
 
-        {/* Basic info */}
         <div style={s.section}>
           <div style={s.sectionLabel}>About you</div>
           <div style={s.row}>
             <div style={s.field}>
               <label style={s.label}>Full name *</label>
               <input style={s.input} value={form.full_name}
-                onChange={e => set('full_name', e.target.value)}
-                placeholder="Cameron Clayson" />
+                onChange={e => set('full_name', e.target.value)} />
             </div>
             <div style={s.field}>
               <label style={s.label}>Years experience</label>
               <input style={s.input} type="number" value={form.years_experience}
-                onChange={e => set('years_experience', e.target.value)}
-                placeholder="10" min="0" max="50" />
+                onChange={e => set('years_experience', e.target.value)} min="0" max="50" />
             </div>
           </div>
           <div style={s.row}>
@@ -243,7 +158,6 @@ export default function ProfileSetup({ user, onComplete }) {
           </div>
         </div>
 
-        {/* Location */}
         <div style={s.section}>
           <div style={s.sectionLabel}>Home base</div>
           <div style={s.row}>
@@ -258,8 +172,7 @@ export default function ProfileSetup({ user, onComplete }) {
             <div style={s.field}>
               <label style={s.label}>Home city</label>
               <input style={s.input} value={form.home_city}
-                onChange={e => set('home_city', e.target.value)}
-                placeholder="Salt Lake City" />
+                onChange={e => set('home_city', e.target.value)} />
             </div>
           </div>
           <div style={s.row}>
@@ -283,7 +196,6 @@ export default function ProfileSetup({ user, onComplete }) {
           </div>
         </div>
 
-        {/* Rig */}
         <div style={s.section}>
           <div style={s.sectionLabel}>Living situation on the road</div>
           <div style={s.field}>
@@ -296,15 +208,14 @@ export default function ProfileSetup({ user, onComplete }) {
           </div>
         </div>
 
-        {/* Certifications */}
         <div style={s.section}>
-          <div style={s.sectionLabel}>Certifications held (select all that apply)</div>
+          <div style={s.sectionLabel}>Certifications held</div>
           <CertSelect value={form.certifications} onChange={v => set('certifications', v)} />
         </div>
 
-        <button style={{ ...s.btn, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', minHeight: '44px' }}
-          onClick={handleSubmit} disabled={loading}>
-          {loading ? <><Spinner /> Saving...</> : 'Save profile and continue \u2192'}
+        <button style={{ ...s.btn, background: saving ? '#333' : '#4caf50' }}
+          onClick={handleSubmit} disabled={saving}>
+          {saving ? <><Spinner /> Saving...</> : 'Save changes'}
         </button>
       </div>
     </div>

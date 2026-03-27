@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
+import Spinner from '../components/Spinner'
+import useIsMobile from '../hooks/useIsMobile'
 
 // State income tax rates (2026 - flat or effective estimate for working income)
 // Source: Tax Foundation 2026 state income tax data
@@ -88,14 +90,14 @@ const s = {
   field: { marginBottom: '12px' },
   label: { display: 'block', color: '#aaa', fontSize: '12px', marginBottom: '5px' },
   input: {
-    width: '100%', padding: '9px 12px', background: '#0a0a0a',
+    width: '100%', padding: '11px 12px', background: '#0a0a0a',
     border: '1px solid #2a2a2a', borderRadius: '8px', color: '#fff',
-    fontSize: '13px', outline: 'none', boxSizing: 'border-box'
+    fontSize: '13px', outline: 'none', boxSizing: 'border-box', minHeight: '44px'
   },
   select: {
-    width: '100%', padding: '9px 12px', background: '#0a0a0a',
+    width: '100%', padding: '11px 12px', background: '#0a0a0a',
     border: '1px solid #2a2a2a', borderRadius: '8px', color: '#fff',
-    fontSize: '13px', outline: 'none', boxSizing: 'border-box', cursor: 'pointer'
+    fontSize: '13px', outline: 'none', boxSizing: 'border-box', cursor: 'pointer', minHeight: '44px'
   },
   row2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' },
   resultRow: {
@@ -125,7 +127,8 @@ const s = {
     width: '100%', padding: '11px', background: '#1a2e1a',
     border: '1px solid #2a4a2a', borderRadius: '8px', color: '#4caf50',
     fontSize: '13px', fontWeight: '500', cursor: 'pointer', marginTop: '12px',
-    transition: 'all 0.15s'
+    transition: 'all 0.15s', minHeight: '44px',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
   },
   saveBtnDisabled: {
     width: '100%', padding: '11px', background: '#141414',
@@ -191,6 +194,7 @@ function buildInitialForm(profile) {
 }
 
 export default function PayCalculator({ profile, user, onProfileUpdate }) {
+  const mobile = useIsMobile()
   const hasSavedJob = profile?.current_job_wage != null
   const [form, setForm] = useState(() => buildInitialForm(profile))
   const [saving, setSaving] = useState(false)
@@ -255,7 +259,7 @@ export default function PayCalculator({ profile, user, onProfileUpdate }) {
         <h2 style={s.title}>Pay Calculator</h2>
         <p style={s.sub}>Enter any job's wage details to see your real weekly net take-home after all deductions.</p>
 
-        <div style={s.grid}>
+        <div style={{ ...s.grid, gridTemplateColumns: mobile ? '1fr' : '1fr 1fr' }}>
           {/* LEFT — Inputs */}
           <div>
             <div style={s.card}>
@@ -411,7 +415,7 @@ export default function PayCalculator({ profile, user, onProfileUpdate }) {
                     ) : (
                       <button style={saving ? s.saveBtnDisabled : s.saveBtn}
                         onClick={handleSaveJob} disabled={saving}>
-                        {saving ? 'Saving...' : hasSavedJob ? 'Update current job' : 'Save as my current job'}
+                        {saving ? <><Spinner /> Saving...</> : hasSavedJob ? 'Update current job' : 'Save as my current job'}
                       </button>
                     )
                   )}

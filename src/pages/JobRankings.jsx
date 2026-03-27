@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import CertSelect from '../components/CertSelect'
+import Spinner from '../components/Spinner'
+import useIsMobile from '../hooks/useIsMobile'
 
 // ── Pay calculation (mirrors PayCalculator logic) ──────────────────────────
 const STATE_TAX_RATES = {
@@ -193,14 +195,14 @@ const s = {
   field: { marginBottom: '12px' },
   label: { display: 'block', color: '#aaa', fontSize: '12px', marginBottom: '5px' },
   input: {
-    width: '100%', padding: '9px 12px', background: '#0a0a0a',
+    width: '100%', padding: '11px 12px', background: '#0a0a0a',
     border: '1px solid #2a2a2a', borderRadius: '8px', color: '#fff',
-    fontSize: '13px', outline: 'none', boxSizing: 'border-box'
+    fontSize: '13px', outline: 'none', boxSizing: 'border-box', minHeight: '44px'
   },
   select: {
-    width: '100%', padding: '9px 12px', background: '#0a0a0a',
+    width: '100%', padding: '11px 12px', background: '#0a0a0a',
     border: '1px solid #2a2a2a', borderRadius: '8px', color: '#fff',
-    fontSize: '13px', outline: 'none', boxSizing: 'border-box', cursor: 'pointer'
+    fontSize: '13px', outline: 'none', boxSizing: 'border-box', cursor: 'pointer', minHeight: '44px'
   },
   row2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' },
   row3: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' },
@@ -282,6 +284,7 @@ const BLANK_FORM = {
 }
 
 export default function JobRankings({ user, profile }) {
+  const mobile = useIsMobile()
   const [jobs, setJobs] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -470,10 +473,26 @@ export default function JobRankings({ user, profile }) {
         </div>
 
         {loading ? (
-          <div style={s.empty}>Loading...</div>
+          <div style={{ textAlign: 'center', padding: '60px 0' }}>
+            <Spinner size="lg" />
+            <div style={{ color: '#555', fontSize: '13px', marginTop: '12px' }}>Loading jobs...</div>
+          </div>
         ) : jobs.length === 0 ? (
-          <div style={s.empty}>
-            No jobs yet. Click <strong style={{ color: '#4caf50' }}>+ Add Job</strong> to enter your first opportunity.
+          <div style={{
+            textAlign: 'center', padding: '60px 20px',
+            background: '#141414', border: '1px solid #222', borderRadius: '12px'
+          }}>
+            <div style={{ fontSize: '36px', marginBottom: '16px' }}>&#128203;</div>
+            <div style={{ color: '#fff', fontSize: '16px', fontWeight: '500', marginBottom: '8px' }}>
+              No jobs saved yet
+            </div>
+            <div style={{ color: '#666', fontSize: '13px', marginBottom: '24px', maxWidth: '320px', margin: '0 auto 24px' }}>
+              Add job opportunities to compare them side by side with automatic scoring based on your profile.
+            </div>
+            <button style={{
+              ...s.addBtn, padding: '12px 28px', fontSize: '14px', minHeight: '44px',
+              display: 'inline-flex', alignItems: 'center', gap: '6px'
+            }} onClick={openAdd}>+ Add Your First Job</button>
           </div>
         ) : (() => {
           // Pre-compute net for all jobs to find max for normalization
@@ -507,12 +526,26 @@ export default function JobRankings({ user, profile }) {
                   const delta = currentNet != null ? netWeekly - currentNet : null
                   const expanded = expandedId === job.saved_id
                   return (
-                    <div key={job.saved_id} style={s.card}>
-                      <div style={s.rank}>{idx + 1}</div>
+                    <div key={job.saved_id} style={{ ...s.card, flexDirection: mobile ? 'column' : 'row', alignItems: mobile ? 'stretch' : 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: mobile ? '100%' : 'auto' }}>
+                        <div style={s.rank}>{idx + 1}</div>
+                        {mobile && (
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                              <span style={s.cardProject} onClick={() => openEdit(job)}>{job.project_name}</span>
+                              <span style={s.scoreBadge(total)}>{total}/100</span>
+                            </div>
+                            <div style={s.cardLocation}>
+                              {[job.city, job.state].filter(Boolean).join(', ')}
+                              {job.contractor && <span> &middot; {job.contractor}</span>}
+                            </div>
+                          </div>
+                        )}
+                      </div>
 
                       <div style={s.cardBody}>
-                        <div style={s.cardTop}>
-                          <div>
+                        <div style={{ ...s.cardTop, flexDirection: mobile ? 'column' : 'row' }}>
+                          {!mobile && <div>
                             <div style={{ display: 'flex', alignItems: 'center' }}>
                               <span style={s.cardProject} onClick={() => openEdit(job)} role="button" tabIndex={0}>
                                 {job.project_name}
@@ -523,8 +556,8 @@ export default function JobRankings({ user, profile }) {
                               {[job.city, job.state].filter(Boolean).join(', ')}
                               {job.contractor && <span> &middot; {job.contractor}</span>}
                             </div>
-                          </div>
-                          <div style={s.cardPay}>
+                          </div>}
+                          <div style={{ ...s.cardPay, textAlign: mobile ? 'left' : 'right' }}>
                             <div style={s.cardNet}>{fmt(netWeekly)}/wk</div>
                             <div style={s.cardMonthly}>{fmt(netMonthly)}/mo</div>
                             {delta != null && (
@@ -599,10 +632,10 @@ export default function JobRankings({ user, profile }) {
       {/* ── Add / Edit modal ──────────────────────────────────────────── */}
       {showForm && (
         <div style={s.overlay} onClick={(e) => { if (e.target === e.currentTarget) setShowForm(false) }}>
-          <div style={s.modal}>
+          <div style={{ ...s.modal, width: mobile ? '95%' : '480px', padding: mobile ? '20px' : '24px' }}>
             <div style={s.modalTitle}>{editingId ? 'Edit Job' : 'Add Job'}</div>
 
-            <div style={s.row2}>
+            <div style={{ ...s.row2, gridTemplateColumns: mobile ? '1fr' : '1fr 1fr' }}>
               <div style={s.field}>
                 <label style={s.label}>Project name *</label>
                 <input style={s.input} value={form.project_name}
@@ -615,7 +648,7 @@ export default function JobRankings({ user, profile }) {
               </div>
             </div>
 
-            <div style={s.row3}>
+            <div style={{ ...s.row3, gridTemplateColumns: mobile ? '1fr' : '1fr 1fr 1fr' }}>
               <div style={s.field}>
                 <label style={s.label}>City</label>
                 <input style={s.input} value={form.city}
@@ -635,7 +668,7 @@ export default function JobRankings({ user, profile }) {
               </div>
             </div>
 
-            <div style={s.row3}>
+            <div style={{ ...s.row3, gridTemplateColumns: mobile ? '1fr' : '1fr 1fr 1fr' }}>
               <div style={s.field}>
                 <label style={s.label}>OT rate ($/hr)</label>
                 <div style={{ display: 'flex', gap: '4px', marginBottom: '6px' }}>
@@ -676,7 +709,7 @@ export default function JobRankings({ user, profile }) {
               </div>
             </div>
 
-            <div style={s.row2}>
+            <div style={{ ...s.row2, gridTemplateColumns: mobile ? '1fr' : '1fr 1fr' }}>
               <div style={s.field}>
                 <label style={s.label}>Start date</label>
                 <input style={s.input} type="date" value={form.start_date}
@@ -721,8 +754,9 @@ export default function JobRankings({ user, profile }) {
 
             <div style={s.modalActions}>
               <button style={s.cancelBtn} onClick={() => setShowForm(false)}>Cancel</button>
-              <button style={s.saveBtn} onClick={handleSave} disabled={saving}>
-                {saving ? 'Saving...' : editingId ? 'Update Job' : 'Save Job'}
+              <button style={{ ...s.saveBtn, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', minHeight: '44px' }}
+                onClick={handleSave} disabled={saving}>
+                {saving ? <><Spinner /> Saving...</> : editingId ? 'Update Job' : 'Save Job'}
               </button>
             </div>
           </div>

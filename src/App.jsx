@@ -1,13 +1,17 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './lib/supabase'
+import { FullPageSpinner } from './components/Spinner'
 import Auth from './pages/Auth'
 import Dashboard from './pages/Dashboard'
 import ProfileSetup from './pages/ProfileSetup'
+import ToS from './pages/ToS'
+import Privacy from './pages/Privacy'
 
 export default function App() {
   const [session, setSession] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(null) // null = normal flow, 'tos', 'privacy'
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -41,24 +45,13 @@ export default function App() {
     fetchProfile(session.user.id)
   }
 
-  if (loading) {
-    return (
-      <div style={{
-        minHeight: '100vh',
-        background: '#0a0a0a',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: '#444',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-        fontSize: '14px'
-      }}>
-        Loading...
-      </div>
-    )
-  }
+  // Legal pages — accessible from anywhere
+  if (page === 'tos') return <ToS onBack={() => setPage(null)} />
+  if (page === 'privacy') return <Privacy onBack={() => setPage(null)} />
 
-  if (!session) return <Auth />
+  if (loading) return <FullPageSpinner />
+
+  if (!session) return <Auth onNavigate={setPage} />
   if (!profile) return <ProfileSetup user={session.user} onComplete={handleProfileComplete} />
   return <Dashboard user={session.user} profile={profile} onProfileUpdate={() => fetchProfile(session.user.id)} />
 }

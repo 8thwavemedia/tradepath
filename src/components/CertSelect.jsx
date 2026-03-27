@@ -4,14 +4,14 @@ import { CERT_CATEGORIES, ALL_CERTS } from '../lib/certifications'
 const styles = {
   wrap: { position: 'relative' },
   input: {
-    width: '100%', padding: '9px 12px', background: '#0a0a0a',
+    width: '100%', padding: '11px 12px', background: '#0a0a0a',
     border: '1px solid #2a2a2a', borderRadius: '8px', color: '#fff',
-    fontSize: '13px', outline: 'none', boxSizing: 'border-box'
+    fontSize: '13px', outline: 'none', boxSizing: 'border-box', minHeight: '44px'
   },
   inputFocused: {
-    width: '100%', padding: '9px 12px', background: '#0a0a0a',
+    width: '100%', padding: '11px 12px', background: '#0a0a0a',
     border: '1px solid #4caf50', borderRadius: '8px', color: '#fff',
-    fontSize: '13px', outline: 'none', boxSizing: 'border-box'
+    fontSize: '13px', outline: 'none', boxSizing: 'border-box', minHeight: '44px'
   },
   dropdown: {
     position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
