@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import Spinner from '../components/Spinner'
 
 export default function Auth({ onNavigate }) {
-  const [mode, setMode] = useState('login') // 'login' | 'signup' | 'ba-signup'
+  const [mode, setMode] = useState('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -16,11 +16,10 @@ export default function Auth({ onNavigate }) {
     setMessage('')
     setError('')
 
-    if (mode === 'signup' || mode === 'ba-signup') {
+    if (mode === 'signup') {
       const { error } = await supabase.auth.signUp({ email, password })
       if (error) setError(error.message)
-      else setMessage('Check your email to confirm your account.' +
-        (mode === 'ba-signup' ? ' After verifying, sign in to set up your BA portal.' : ''))
+      else setMessage('Check your email to confirm your account.')
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) setError(error.message)
@@ -47,23 +46,13 @@ export default function Auth({ onNavigate }) {
         }}>
           <div style={{ textAlign: 'center', marginBottom: '32px' }}>
             <h1 style={{ color: '#fff', fontSize: '24px', fontWeight: '600', margin: '0 0 8px' }}>
-              {mode === 'ba-signup' ? 'Create your BA Account' : 'TradePath'}
+              TradePath
             </h1>
             <p style={{ color: '#666', fontSize: '14px', margin: 0 }}>
-              {mode === 'ba-signup'
-                ? 'After signing up, you will set up your BA portal'
-                : 'Decision intelligence for traveling tradespeople'}
+              Decision intelligence for traveling tradespeople
             </p>
           </div>
 
-          {mode === 'ba-signup' ? (
-            <div style={{ marginBottom: '24px' }}>
-              <button onClick={() => setMode('login')} style={{
-                background: 'none', border: 'none', color: '#4caf50',
-                fontSize: '13px', cursor: 'pointer', padding: 0
-              }}>&larr; Back to sign in</button>
-            </div>
-          ) : (
           <div style={{
             display: 'flex', background: '#0a0a0a', borderRadius: '8px',
             padding: '4px', marginBottom: '24px'
@@ -80,7 +69,6 @@ export default function Auth({ onNavigate }) {
               </button>
             ))}
           </div>
-          )}
 
           <form onSubmit={handleSubmit}>
             <div style={{ marginBottom: '16px' }}>
@@ -113,20 +101,10 @@ export default function Auth({ onNavigate }) {
               fontWeight: '500', cursor: loading ? 'not-allowed' : 'pointer',
               minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
             }}>
-              {loading ? <><Spinner /> Please wait...</> : mode === 'login' ? 'Sign In' : mode === 'ba-signup' ? 'Create BA Account' : 'Create Account'}
+              {loading ? <><Spinner /> Please wait...</> : mode === 'login' ? 'Sign In' : 'Create Account'}
             </button>
           </form>
         </div>
-
-        {mode !== 'ba-signup' && (
-        <div style={{ textAlign: 'center', marginTop: '20px' }}>
-          <button onClick={() => setMode('ba-signup')} style={{
-            background: 'none', border: '1px solid #2a2a2a', borderRadius: '8px',
-            color: '#7eb8f7', fontSize: '12px', cursor: 'pointer', padding: '10px 20px',
-            width: '100%', marginBottom: '12px'
-          }}>Business Agent / Contractor? Set up your BA Portal</button>
-        </div>
-        )}
 
         <div style={{ textAlign: 'center', marginTop: '4px' }}>
           <button onClick={() => onNavigate?.('tos')} style={{

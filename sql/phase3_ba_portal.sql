@@ -100,3 +100,27 @@ CREATE POLICY "BA users can manage dispatch records for their local" ON dispatch
   FOR ALL USING (
     local_id IN (SELECT local_id FROM ba_users WHERE id = auth.uid())
   );
+
+-- BA invite system (invite-only access)
+CREATE TABLE IF NOT EXISTS ba_invites (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  token TEXT UNIQUE NOT NULL,
+  email TEXT NOT NULL,
+  local_name TEXT,
+  used BOOLEAN DEFAULT FALSE,
+  used_at TIMESTAMPTZ,
+  expires_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '7 days'),
+  created_by TEXT DEFAULT 'admin'
+);
+
+ALTER TABLE ba_invites ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can read invite by token" ON ba_invites
+  FOR SELECT USING (true);
+
+CREATE POLICY "Authenticated users can update invites" ON ba_invites
+  FOR UPDATE USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can insert invites" ON ba_invites
+  FOR INSERT WITH CHECK (auth.role() = 'authenticated');

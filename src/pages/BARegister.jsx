@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import Spinner from '../components/Spinner'
+import { FullPageSpinner } from '../components/Spinner'
 import useIsMobile from '../hooks/useIsMobile'
 
 const TRADES = [
@@ -83,16 +84,45 @@ const s = {
     cursor: 'pointer', padding: 0, marginBottom: '20px', display: 'block' }
 }
 
-export default function BARegister({ user, onComplete, onBack }) {
+export default function BARegister({ user, token, onComplete, onBack }) {
   const mobile = useIsMobile()
-  const [step, setStep] = useState(1)
+  const [step, setStep] = useState(0) // 0 = validating token
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [invite, setInvite] = useState(null)
   const [form, setForm] = useState({
     union_name: '', trade: '', local_number: '', city: '', state: '',
-    ba_email: user?.email || '', ba_phone: '', full_name: '', title: 'Business Agent',
+    ba_email: '', ba_phone: '', full_name: '', title: 'Business Agent',
     tier: 'professional'
   })
+
+  useEffect(() => {
+    if (!token) { onBack(); return }
+    validateToken()
+  }, [token])
+
+  const validateToken = async () => {
+    const { data, error } = await supabase
+      .from('ba_invites')
+      .select('*')
+      .eq('token', token)
+      .eq('used', false)
+      .gt('expires_at', new Date().toISOString())
+      .maybeSingle()
+
+    if (error || !data) {
+      onBack()
+      return
+    }
+
+    setInvite(data)
+    setForm(f => ({
+      ...f,
+      ba_email: data.email,
+      union_name: data.local_name || ''
+    }))
+    setStep(1)
+  }
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
@@ -141,15 +171,24 @@ export default function BARegister({ user, onComplete, onBack }) {
         phone: form.ba_phone
       })
 
+    if (baErr) { setSaving(false); setError(baErr.message); return }
+
+    // Mark invite as used
+    await supabase
+      .from('ba_invites')
+      .update({ used: true, used_at: new Date().toISOString() })
+      .eq('id', invite.id)
+
     setSaving(false)
-    if (baErr) { setError(baErr.message); return }
     setStep(3)
   }
+
+  if (step === 0) return <FullPageSpinner />
 
   return (
     <div style={s.page}>
       <div style={s.wrap}>
-        <button style={s.back} onClick={onBack}>&larr; Back to sign in</button>
+        <button style={s.back} onClick={onBack}>&larr; Back</button>
         <h1 style={s.title}>Set up your BA Portal</h1>
         <p style={s.sub}>Manage job postings, dispatch workers, and grow your local.</p>
 
