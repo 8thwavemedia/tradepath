@@ -35,7 +35,7 @@ export default function App() {
   const [local, setLocal] = useState(null)
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(() => isAdminRoute() ? 'admin-invite' : null)
-  const [inviteToken] = useState(getInviteToken)
+  const [inviteToken, setInviteToken] = useState(getInviteToken)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -76,6 +76,7 @@ export default function App() {
 
   const handleProfileComplete = () => fetchUserData(session.user.id)
   const handleBAComplete = () => {
+    setInviteToken(null)
     clearTokenFromUrl()
     // Re-fetch with the session that BARegister created internally
     supabase.auth.getSession().then(({ data: { session: s } }) => {
