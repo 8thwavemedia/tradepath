@@ -201,21 +201,54 @@ export default function BARegister({ token, onComplete, onBack }) {
     setSaving(true)
     setError('')
 
-    // Create local
-    const { data: local, error: localErr } = await supabase
-      .from('locals')
-      .insert({
-        union_name: form.union_name,
-        trade: form.trade,
-        local_number: form.local_number,
-        city: form.city,
-        state: form.state,
-        ba_email: form.ba_email,
-        ba_phone: form.ba_phone,
-        subscription_tier: form.tier
-      })
-      .select('id')
-      .single()
+    // Ensure the Supabase client has a fully propagated session
+    let session = null
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const { data } = await supabase.auth.getSession()
+      if (data?.session) {
+        session = data.session
+        break
+      }
+      await new Promise(r => setTimeout(r, 500))
+    }
+
+    if (!session) {
+      setSaving(false)
+      setError('Session not established after signup. Please try signing in.')
+      setStep('confirm-email')
+      return
+    }
+
+    // Create local (retry up to 3 times if auth not yet propagated)
+    let local = null
+    let localErr = null
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const result = await supabase
+        .from('locals')
+        .insert({
+          union_name: form.union_name,
+          trade: form.trade,
+          local_number: form.local_number,
+          city: form.city,
+          state: form.state,
+          ba_email: form.ba_email,
+          ba_phone: form.ba_phone,
+          subscription_tier: form.tier
+        })
+        .select('id')
+        .single()
+
+      if (!result.error) {
+        local = result.data
+        localErr = null
+        break
+      }
+
+      localErr = result.error
+      // Only retry on auth/RLS errors
+      if (result.error.code !== '42501' && result.error.message?.indexOf('policy') === -1) break
+      await new Promise(r => setTimeout(r, 500))
+    }
 
     if (localErr) { setSaving(false); setError(localErr.message); return }
 
@@ -223,7 +256,7 @@ export default function BARegister({ token, onComplete, onBack }) {
     const { error: baErr } = await supabase
       .from('ba_users')
       .insert({
-        id: authUser.id,
+        id: session.user.id,
         local_id: local.id,
         full_name: form.full_name,
         title: form.title,
