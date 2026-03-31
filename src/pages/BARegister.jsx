@@ -201,37 +201,12 @@ export default function BARegister({ token, onComplete, onBack }) {
     setSaving(true)
     setError('')
 
-    // Ensure the Supabase client has a fully propagated session
-    let session = null
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const { data } = await supabase.auth.getSession()
-      if (data?.session) {
-        session = data.session
-        break
-      }
-      await new Promise(r => setTimeout(r, 500))
-    }
-
-    console.log('Session check:', session)
-    console.log('Session user ID:', session?.user?.id)
-    console.log('Auth role:', session?.user?.role)
-    console.log('Access token (first 20):', session?.access_token?.substring(0, 20))
-
-    if (!session) {
-      setSaving(false)
-      setError('Session not established after signup. Please try signing in.')
-      setStep('confirm-email')
-      return
-    }
-
-    // Create local (retry up to 3 times if auth not yet propagated)
-    let local = null
-    let localErr = null
-    for (let attempt = 0; attempt < 3; attempt++) {
-      console.log(`Locals INSERT attempt ${attempt + 1}/3`)
-      const result = await supabase
-        .from('locals')
-        .insert({
+    // Use edge function to create locals + ba_users server-side with service role
+    // This bypasses RLS entirely, avoiding the post-signup JWT propagation issue
+    const { data, error: fnError } = await supabase.functions.invoke('create-ba-portal', {
+      body: {
+        userId: authUser.id,
+        localData: {
           union_name: form.union_name,
           trade: form.trade,
           local_number: form.local_number,
@@ -239,49 +214,24 @@ export default function BARegister({ token, onComplete, onBack }) {
           state: form.state,
           ba_email: form.ba_email,
           ba_phone: form.ba_phone,
-          subscription_tier: form.tier
-        })
-        .select('id')
-        .single()
-
-      console.log('Locals INSERT error:', JSON.stringify(result.error))
-      console.log('Locals INSERT data:', result.data)
-      console.log('Locals INSERT status:', result.status)
-
-      if (!result.error) {
-        local = result.data
-        localErr = null
-        break
+        },
+        baUserData: {
+          full_name: form.full_name,
+          title: form.title,
+          phone: form.ba_phone,
+        },
+        tier: form.tier,
+        token
       }
-
-      localErr = result.error
-      // Only retry on auth/RLS errors
-      if (result.error.code !== '42501' && result.error.message?.indexOf('policy') === -1) break
-      await new Promise(r => setTimeout(r, 500))
-    }
-
-    if (localErr) { setSaving(false); setError(localErr.message); return }
-
-    // Create ba_user
-    const { error: baErr } = await supabase
-      .from('ba_users')
-      .insert({
-        id: session.user.id,
-        local_id: local.id,
-        full_name: form.full_name,
-        title: form.title,
-        phone: form.ba_phone
-      })
-
-    if (baErr) { setSaving(false); setError(baErr.message); return }
-
-    // Mark invite as used
-    await supabase
-      .from('ba_invites')
-      .update({ used: true, used_at: new Date().toISOString() })
-      .eq('id', invite.id)
+    })
 
     setSaving(false)
+
+    if (fnError || data?.error) {
+      setError(fnError?.message || data?.error || 'Registration failed. Please try again.')
+      return
+    }
+
     setStep(4)
   }
 
