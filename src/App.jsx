@@ -56,13 +56,21 @@ export default function App() {
   }, [])
 
   const fetchUserData = async (userId) => {
-    const [{ data: prof }, { data: ba }] = await Promise.all([
-      supabase.from('profiles').select('*').eq('id', userId).single(),
-      supabase.from('ba_users').select('*, locals(*)').eq('id', userId).maybeSingle()
-    ])
-    setProfile(prof)
+    // Check BA user first — if they are a BA, skip profiles query entirely
+    const { data: ba } = await supabase
+      .from('ba_users').select('*, locals(*)').eq('id', userId).maybeSingle()
+
     setBaUser(ba)
-    if (ba?.locals) setLocal(ba.locals)
+    if (ba?.locals) {
+      setLocal(ba.locals)
+      setLoading(false)
+      return
+    }
+
+    // Not a BA user — fetch worker profile
+    const { data: prof } = await supabase
+      .from('profiles').select('*').eq('id', userId).single()
+    setProfile(prof)
     setLoading(false)
   }
 

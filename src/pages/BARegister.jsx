@@ -98,7 +98,7 @@ export default function BARegister({ token, onComplete, onBack }) {
   const [password, setPassword] = useState('')
   const [authUser, setAuthUser] = useState(null)
   const [form, setForm] = useState({
-    union_name: '', trade: '', local_number: '', city: '', state: '',
+    union_name: '', trade: '', city: '', state: '',
     ba_email: '', ba_phone: '', full_name: '', title: 'Business Agent',
     tier: 'professional'
   })
@@ -236,7 +236,7 @@ export default function BARegister({ token, onComplete, onBack }) {
         localData: {
           union_name: form.union_name,
           trade: form.trade,
-          local_number: form.local_number,
+          local_number: (form.union_name.match(/\b(\d+)\b/) || [])[1] || '',
           city: form.city,
           state: form.state,
           ba_email: form.ba_email,
@@ -351,19 +351,12 @@ export default function BARegister({ token, onComplete, onBack }) {
                 <input style={s.input} value={form.union_name} onChange={e => set('union_name', e.target.value)}
                   placeholder="United Association Local 57" />
               </div>
-              <div style={{ ...s.row, gridTemplateColumns: mobile ? '1fr' : '1fr 1fr' }}>
-                <div style={s.field}>
-                  <label style={s.label}>Trade *</label>
-                  <select style={s.select} value={form.trade} onChange={e => set('trade', e.target.value)}>
-                    <option value="">Select trade</option>
-                    {TRADES.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
-                <div style={s.field}>
-                  <label style={s.label}>Local number</label>
-                  <input style={s.input} value={form.local_number} onChange={e => set('local_number', e.target.value)}
-                    placeholder="57" />
-                </div>
+              <div style={s.field}>
+                <label style={s.label}>Trade *</label>
+                <select style={s.select} value={form.trade} onChange={e => set('trade', e.target.value)}>
+                  <option value="">Select trade</option>
+                  {TRADES.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
               </div>
               <div style={{ ...s.row, gridTemplateColumns: mobile ? '1fr' : '1fr 1fr' }}>
                 <div style={s.field}>
@@ -424,7 +417,7 @@ export default function BARegister({ token, onComplete, onBack }) {
             <div style={s.confirmIcon}>{'\u2705'}</div>
             <div style={s.confirmTitle}>Your BA Portal is ready!</div>
             <div style={s.confirmSub}>
-              {form.union_name} {form.local_number && `Local ${form.local_number}`} &middot; {TIERS.find(t => t.id === form.tier)?.name} plan
+              {form.union_name} &middot; {TIERS.find(t => t.id === form.tier)?.name} plan
             </div>
             <div style={{ textAlign: 'left', marginBottom: '20px' }}>
               {[

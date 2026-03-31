@@ -228,7 +228,7 @@ export default function BADashboard({ user, baUser, local }) {
         {/* Overview */}
         {tab === 'overview' && (
           <>
-            <h2 style={s.title}>{local?.union_name} {local?.local_number && `Local ${local.local_number}`}</h2>
+            <h2 style={s.title}>{local?.union_name}</h2>
             <p style={s.sub}>{baUser?.full_name} &middot; {baUser?.title} &middot; {local?.trade}</p>
 
             {loading ? (
