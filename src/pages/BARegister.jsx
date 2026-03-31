@@ -156,7 +156,20 @@ export default function BARegister({ token, onComplete, onBack }) {
     // signUp with auto-confirm returns a session immediately
     // If email confirmation is required, the session will be null
     if (data.session) {
-      setAuthUser(data.session.user)
+      // Get a fresh JWT via signIn immediately after signUp
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email: invite.email,
+        password
+      })
+
+      if (signInError || !signInData.session) {
+        setSaving(false)
+        setError('Account created but sign in failed. Please try signing in manually.')
+        setStep('confirm-email')
+        return
+      }
+
+      setAuthUser(signInData.session.user)
       setSaving(false)
       setStep(2)
     } else {
@@ -201,14 +214,22 @@ export default function BARegister({ token, onComplete, onBack }) {
     setSaving(true)
     setError('')
 
-    // Get the current session token for the Edge Function auth header
+    // Get fresh session token for the Edge Function auth header
     const { data: sessionData } = await supabase.auth.getSession()
+    const accessToken = sessionData?.session?.access_token
+
+    if (!accessToken) {
+      setError('No active session. Please sign in and try again.')
+      setSaving(false)
+      setStep('confirm-email')
+      return
+    }
 
     // Use edge function to create locals + ba_users server-side with service role
     // This bypasses RLS entirely, avoiding the post-signup JWT propagation issue
     const { data, error: fnError } = await supabase.functions.invoke('create-ba-portal', {
       headers: {
-        Authorization: `Bearer ${sessionData.session.access_token}`
+        Authorization: `Bearer ${accessToken}`
       },
       body: {
         userId: authUser.id,
