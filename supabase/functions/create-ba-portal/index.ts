@@ -12,6 +12,14 @@ serve(async (req) => {
   }
 
   try {
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Missing authorization header' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
     const { userId, localData, baUserData, tier, token } = await req.json()
 
     const supabaseAdmin = createClient(

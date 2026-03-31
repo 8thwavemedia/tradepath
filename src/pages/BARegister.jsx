@@ -201,9 +201,15 @@ export default function BARegister({ token, onComplete, onBack }) {
     setSaving(true)
     setError('')
 
+    // Get the current session token for the Edge Function auth header
+    const { data: sessionData } = await supabase.auth.getSession()
+
     // Use edge function to create locals + ba_users server-side with service role
     // This bypasses RLS entirely, avoiding the post-signup JWT propagation issue
     const { data, error: fnError } = await supabase.functions.invoke('create-ba-portal', {
+      headers: {
+        Authorization: `Bearer ${sessionData.session.access_token}`
+      },
       body: {
         userId: authUser.id,
         localData: {
