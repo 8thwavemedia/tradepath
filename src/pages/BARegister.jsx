@@ -212,6 +212,11 @@ export default function BARegister({ token, onComplete, onBack }) {
       await new Promise(r => setTimeout(r, 500))
     }
 
+    console.log('Session check:', session)
+    console.log('Session user ID:', session?.user?.id)
+    console.log('Auth role:', session?.user?.role)
+    console.log('Access token (first 20):', session?.access_token?.substring(0, 20))
+
     if (!session) {
       setSaving(false)
       setError('Session not established after signup. Please try signing in.')
@@ -223,6 +228,7 @@ export default function BARegister({ token, onComplete, onBack }) {
     let local = null
     let localErr = null
     for (let attempt = 0; attempt < 3; attempt++) {
+      console.log(`Locals INSERT attempt ${attempt + 1}/3`)
       const result = await supabase
         .from('locals')
         .insert({
@@ -237,6 +243,10 @@ export default function BARegister({ token, onComplete, onBack }) {
         })
         .select('id')
         .single()
+
+      console.log('Locals INSERT error:', JSON.stringify(result.error))
+      console.log('Locals INSERT data:', result.data)
+      console.log('Locals INSERT status:', result.status)
 
       if (!result.error) {
         local = result.data
